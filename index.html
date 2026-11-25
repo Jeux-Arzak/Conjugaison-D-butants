@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conjugaison – Glisser-déposer</title>
+<style>
+  :root{
+    --rose:#ec4899; --rose-clair:#fbcfe8;
+    --bleu:#3b82f6; --vert:#22c55e; --rouge:#ef4444;
+    --jaune:#facc15; --violet:#8b5cf6; --orange:#f97316;
+    --turquoise:#06b6d4; --texte:#1e1b4b;
+  }
+  *{box-sizing:border-box; font-family:'Comic Sans MS','Trebuchet MS',system-ui,sans-serif;}
+  body{margin:0; color:var(--texte); min-height:100vh;
+    background:linear-gradient(135deg,#fce7f3 0%,#e0e7ff 50%,#cffafe 100%);
+    font-size:18px;}
+  header{background:linear-gradient(90deg,var(--rose),var(--violet),var(--turquoise));
+    color:#fff; padding:14px 20px; display:flex; justify-content:space-between;
+    align-items:center; flex-wrap:wrap; gap:10px; box-shadow:0 4px 14px rgba(0,0,0,.15);}
+  header h1{font-size:1.4rem; margin:0;}
+  header .infos{display:flex; gap:18px; font-size:1.05rem; font-weight:800;}
+  main{max-width:1250px; margin:0 auto; padding:18px;}
+
+  .carte{background:#fff; border-radius:20px; padding:26px; max-width:540px;
+    margin:36px auto; box-shadow:0 10px 30px rgba(139,92,246,.18); text-align:center;
+    border:4px solid var(--rose-clair);}
+  .carte h2{margin-top:0; color:var(--rose); font-size:1.7rem;}
+
+  input[type=text]{width:100%; padding:14px 16px; font-size:1.15rem; border:3px solid var(--rose-clair);
+    border-radius:14px; margin:12px 0;}
+  input[type=text]:focus{outline:none; border-color:var(--rose);}
+
+  button{cursor:pointer; border:none; border-radius:14px; padding:13px 24px; font-size:1.1rem;
+    font-weight:800; background:linear-gradient(90deg,var(--rose),var(--violet)); color:#fff;
+    transition:transform .1s, box-shadow .2s; box-shadow:0 4px 12px rgba(236,72,153,.35);}
+  button:hover{transform:translateY(-1px);} button:active{transform:scale(.97);}
+  button.secondaire{background:#f1f5f9; color:var(--texte); box-shadow:none;}
+  button.choix{background:#fff; color:var(--texte); border:3px solid var(--rose-clair);
+    box-shadow:none; margin:5px; font-size:1.05rem;}
+  button.choix.actif{border-color:var(--rose); background:var(--rose-clair); color:#831843;}
+  .erreur{color:var(--rouge); font-size:1rem; min-height:20px;}
+
+  #jeu{display:none;}
+  .barre{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;
+    gap:12px; margin-bottom:16px;}
+  .progression{flex:1; height:20px; background:#e2e8f0; border-radius:12px; overflow:hidden; min-width:180px;}
+  .progression > div{height:100%; width:0; transition:width .35s;
+    background:linear-gradient(90deg,var(--vert),var(--turquoise));}
+  #chrono{font-variant-numeric:tabular-nums; font-weight:800; color:var(--violet); font-size:1.2rem;}
+  #compteur{font-weight:800; color:var(--rose); font-size:1.2rem;}
+
+  .grille{display:grid; gap:16px;}
+  .grille[data-n="1"]{grid-template-columns:1fr; max-width:460px; margin:0 auto;}
+  .grille[data-n="2"]{grid-template-columns:1fr 1fr;}
+  .grille[data-n="3"]{grid-template-columns:repeat(3,1fr);}
+  .grille[data-n="4"]{grid-template-columns:repeat(4,1fr);}
+  @media(max-width:900px){ .grille{grid-template-columns:1fr 1fr !important;} }
+  @media(max-width:560px){ .grille{grid-template-columns:1fr !important;} }
+
+  .colonne{border-radius:16px; padding:14px; color:#fff; box-shadow:0 6px 16px rgba(0,0,0,.12);}
+  .colonne h3{margin:0 0 12px; font-size:1.35rem; text-align:center; text-transform:capitalize;
+    text-shadow:0 2px 3px rgba(0,0,0,.3); letter-spacing:.5px;}
+  .cible{display:flex; justify-content:space-between; align-items:center; gap:8px;
+    border:3px dashed rgba(255,255,255,.85); border-radius:12px; padding:8px 10px; margin-bottom:8px;
+    min-height:60px; font-size:1.05rem; background:rgba(255,255,255,.18);}
+  .cible .pronom{font-weight:900; white-space:nowrap; color:#fff; font-size:1.1rem;}
+  .cible .slot{flex:1; min-height:46px; display:flex; align-items:center; justify-content:center;
+    border:3px dotted rgba(255,255,255,.95); border-radius:10px; padding:4px 8px;
+    background:rgba(255,255,255,.28); position:relative; transition:background .2s;}
+  .cible .slot::before{content:"Glisse ici"; font-size:.85rem; color:rgba(255,255,255,.85);
+    font-style:italic; position:absolute; opacity:1; transition:opacity .2s;}
+  .cible .slot.rempli::before{opacity:0;}
+  .cible.ok{border-style:solid; border-color:#fff; background:rgba(255,255,255,.4);}
+  .cible.ok .slot{border-style:solid; border-color:var(--vert); background:#fff;}
+  .cible.erreur{animation:secousse .35s; background:rgba(239,68,68,.55);}
+  .cible.indice{animation:pulse 1s ease-in-out 2; border-color:var(--jaune); background:rgba(250,204,21,.5);}
+  @keyframes secousse{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(250,204,21,.7)}50%{box-shadow:0 0 0 10px rgba(250,204,21,0)}}
+
+  .etiquette{padding:9px 16px; border-radius:12px; background:#fff; color:var(--texte);
+    font-weight:900; font-size:1.05rem; cursor:grab; user-select:none;
+    box-shadow:0 3px 8px rgba(0,0,0,.18); border:3px solid transparent;}
+  .etiquette.selectionnee{border-color:var(--jaune); outline:4px solid var(--jaune);}
+  .etiquette.dragging{opacity:.45;}
+  .etiquette.placee{background:#fff; color:var(--vert); cursor:default; box-shadow:none;}
+
+  #reserve{margin-top:18px; background:#fff; border-radius:18px; padding:16px;
+    box-shadow:0 6px 18px rgba(0,0,0,.08); border:4px solid var(--rose-clair);}
+  #reserve h4{margin:0 0 12px; font-size:1.15rem; color:var(--rose);}
+  #reserve .zone{display:flex; flex-wrap:wrap; gap:10px; min-height:50px;}
+
+  /* Toast Bravo */
+  #bravo{position:fixed; top:50%; left:50%; transform:translate(-50%,-50%) scale(0);
+    font-size:4.5rem; font-weight:900; color:var(--vert); text-shadow:3px 3px 0 #fff, 6px 6px 0 rgba(34,197,94,.3);
+    pointer-events:none; z-index:1000; transition:transform .35s cubic-bezier(.34,1.56,.64,1), opacity .4s;}
+  #bravo.affiche{transform:translate(-50%,-50%) scale(1); opacity:1;}
+  #bravo.cache{transform:translate(-50%,-50%) scale(0); opacity:0;}
+
+  #recap{display:none; background:#fff; border-radius:20px; padding:28px; max-width:640px;
+    margin:24px auto; text-align:center; box-shadow:0 10px 30px rgba(139,92,246,.2);
+    border:4px solid var(--rose-clair);}
+  #recap h2{margin-top:0; color:var(--rose); font-size:1.8rem;}
+  #recap p{margin:10px 0; font-size:1.15rem;}
+  #recap .note{font-size:3rem; font-weight:900; color:var(--violet);}
+  #recap .detail{font-size:1.05rem; color:#475569;}
+  #cadeau{display:none; margin:18px auto 0; font-size:5rem; animation:rebond 1.2s infinite;}
+  @keyframes rebond{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-14px) rotate(5deg)}}
+  #felicitations{color:var(--vert); font-weight:900; font-size:1.3rem; margin-top:8px;}
+
+  /* Phrases */
+  #phrases{display:none; margin-top:26px; background:linear-gradient(135deg,#fef3c7,#fce7f3);
+    border-radius:18px; padding:22px; text-align:left; border:4px solid var(--jaune);}
+  #phrases h3{margin:0 0 14px; color:var(--orange); font-size:1.4rem; text-align:center;}
+  #phrases ul{list-style:none; padding:0; margin:0;}
+  #phrases li{background:#fff; border-radius:12px; padding:14px 18px; margin-bottom:12px;
+    font-size:1.2rem; line-height:1.5; box-shadow:0 3px 10px rgba(0,0,0,.08);
+    border-left:8px solid var(--rose);}
+  #phrases li strong{color:var(--rose); font-size:1.25rem;}
+
+  table{width:100%; border-collapse:collapse; margin-top:12px; font-size:1rem;}
+  th,td{padding:9px 11px; border-bottom:2px solid #f1f5f9; text-align:left;}
+  th{color:#831843; font-size:.85rem; text-transform:uppercase;}
+  #classement{display:none; max-width:640px; margin:20px auto; background:#fff; border-radius:20px;
+    padding:22px; box-shadow:0 10px 30px rgba(139,92,246,.2); border:4px solid var(--rose-clair);}
+  .actions{display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:18px;}
+
+  #feu{position:fixed; inset:0; pointer-events:none; z-index:999;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧩 Conjugaison – Glisser-déposer</h1>
+  <div class="infos">
+    <span id="nomJoueur"></span>
+    <span id="score">Score : 0</span>
+    <span id="chrono">⏱ 0:00</span>
+  </div>
+</header>
+
+<canvas id="feu"></canvas>
+<div id="bravo" class="cache">Bravo !</div>
+
+<main>
+
+  <!-- Accueil -->
+  <section id="accueil" class="carte">
+    <h2>Bienvenue !</h2>
+    <p style="font-size:1.1rem;">Entre ton prénom pour commencer.</p>
+    <input id="inputNom" type="text" maxlength="20" placeholder="Ton prénom…" autocomplete="off">
+    <div class="erreur" id="errNom"></div>
+
+    <p style="margin-top:20px; font-weight:900; color:var(--violet); font-size:1.15rem;">Combien de verbes veux-tu travailler ?</p>
+    <div id="choixVerbes">
+      <button class="choix" data-n="1">1 verbe</button>
+      <button class="choix actif" data-n="2">2 verbes</button>
+      <button class="choix" data-n="3">3 verbes</button>
+      <button class="choix" data-n="4">4 verbes</button>
+    </div>
+
+    <div style="margin-top:22px;">
+      <button id="btnJouer">Jouer</button>
+      <button class="secondaire" id="btnClassementAccueil">Meilleurs scores</button>
+    </div>
+  </section>
+
+  <!-- Classement -->
+  <section id="classement" class="carte" style="max-width:640px;">
+    <h2>🏆 Meilleurs scores</h2>
+    <table>
+      <thead><tr><th>#</th><th>Prénom</th><th>Score</th><th>Temps</th><th>Date</th></tr></thead>
+      <tbody id="tbodyClassement"></tbody>
+    </table>
+    <div class="actions">
+      <button class="secondaire" id="btnRetourClassement">Retour</button>
+      <button class="secondaire" id="btnEffacerScores">Effacer les scores</button>
+    </div>
+  </section>
+
+  <!-- Jeu -->
+  <section id="jeu">
+    <div class="barre">
+      <div class="progression"><div id="barreProg"></div></div>
+      <div id="compteur">0 / 0</div>
+    </div>
+    <div class="grille" id="grille" data-n="2"></div>
+    <div id="reserve">
+      <h4>🎯 Formes à placer :</h4>
+      <div class="zone" id="zoneReserve"></div>
+    </div>
+  </section>
+
+  <!-- Récap -->
+  <section id="recap">
+    <h2>Partie terminée !</h2>
+    <p id="recapNom"></p>
+    <p class="note" id="recapNote"></p>
+    <p class="detail" id="recapDetail"></p>
+    <p id="recapScore"></p>
+    <p id="recapErreurs"></p>
+    <div id="cadeau">🎁</div>
+    <div id="felicitations"></div>
+
+    <div id="phrases">
+      <h3>📖 À retenir : 4 phrases à lire à la maison</h3>
+      <ul id="listePhrases"></ul>
+    </div>
+
+    <div class="actions">
+      <button id="btnRejouer">Rejouer</button>
+      <button class="secondaire" id="btnVoirClassement">Voir le classement</button>
+      <button class="secondaire" id="btnChangerJoueur">Changer de joueur</button>
+    </div>
+  </section>
+
+</main>
+
+<script>
+/* ================= DONNÉES VERBES ================= */
+const VERBES = {
+  "être":      ["suis","es","est","sommes","êtes","sont"],
+  "avoir":     ["ai","as","a","avons","avez","ont"],
+  "s'appeler": ["m'appelle","t'appelles","s'appelle","nous appelons","vous appelez","s'appellent"],
+  "habiter":   ["habite","habites","habite","habitons","habitez","habitent"]
+};
+const PRONOMS = ["je","tu","il / elle","nous","vous","ils / elles"];
+const COULEURS = {
+  "être":"linear-gradient(160deg,#ec4899,#be185d)",
+  "avoir":"linear-gradient(160deg,#8b5cf6,#6d28d9)",
+  "s'appeler":"linear-gradient(160deg,#06b6d4,#0e7490)",
+  "habiter":"linear-gradient(160deg,#f97316,#c2410c)"
+};
+
+/* ================= BANQUE DE 30 PHRASES A1.1 ================= */
+const BANQUE_PHRASES = {
+  "être": [
+    "Je <strong>suis</strong> content(e).",
+    "Tu <strong>es</strong> mon ami.",
+    "Elle <strong>est</strong> à l'école.",
+    "Nous <strong>sommes</strong> dans la classe.",
+    "Vous <strong>êtes</strong> gentils.",
+    "Ils <strong>sont</strong> à la maison.",
+    "Je <strong>suis</strong> français(e).",
+    "Tu <strong>es</strong> grand(e)."
+  ],
+  "avoir": [
+    "J'<strong>ai</strong> un chat.",
+    "Tu <strong>as</strong> un vélo.",
+    "Il <strong>a</strong> sept ans.",
+    "Nous <strong>avons</strong> une belle maison.",
+    "Vous <strong>avez</strong> un livre.",
+    "Ils <strong>ont</strong> un chien.",
+    "J'<strong>ai</strong> faim.",
+    "Elle <strong>a</strong> soif."
+  ],
+  "s'appeler": [
+    "Je <strong>m'appelle</strong> Léa.",
+    "Tu <strong>t'appelles</strong> Hugo.",
+    "Il <strong>s'appelle</strong> Tom.",
+    "Nous <strong>nous appelons</strong> les amis.",
+    "Vous <strong>vous appelez</strong> comment ?",
+    "Ils <strong>s'appellent</strong> Sam et Lila.",
+    "Elle <strong>s'appelle</strong> Emma.",
+    "Je <strong>m'appelle</strong> Marie."
+  ],
+  "habiter": [
+    "J'<strong>habite</strong> à Paris.",
+    "Tu <strong>habites</strong> à Lyon.",
+    "Il <strong>habite</strong> à la campagne.",
+    "Nous <strong>habitons</strong> dans une maison.",
+    "Vous <strong>habitez</strong> en ville.",
+    "Ils <strong>habitent</strong> près de l'école.",
+    "J'<strong>habite</strong> avec ma famille.",
+    "Elle <strong>habite</strong> à la mer."
+  ]
+};
+// Total : 8×4 = 32 phrases (au moins 30)
+
+/* ================= ÉTAT ================= */
+let joueur = "";
+let nbVerbes = 2;
+let verbesChoisis = [];
+let score = 0;
+let erreurs = 0;
+let placees = 0;
+let total = 0;
+let chronoInterval = null;
+let secondes = 0;
+let indiceUtilise = {};
+let maxScore = 0;
+let historique = [];
+
+/* ================= AUDIO ================= */
+let audioCtx = null;
+function ctx(){
+  if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if(audioCtx.state === "suspended") audioCtx.resume();
+  return audioCtx;
+}
+function jouerApplaudissement(){
+  const c = ctx();
+  const duree = 0.6;
+  const buffer = c.createBuffer(1, c.sampleRate * duree, c.sampleRate);
+  const data = buffer.getChannelData(0);
+  for(let i=0;i<data.length;i++){
+    const t = i / c.sampleRate;
+    const env = Math.exp(-t*6);
+    data[i] = (Math.random()*2-1) * env * (0.6 + 0.4*Math.sin(t*90));
+  }
+  const src = c.createBufferSource(); src.buffer = buffer;
+  const filtre = c.createBiquadFilter(); filtre.type="bandpass"; filtre.frequency.value=1800; filtre.Q.value=0.8;
+  const gain = c.createGain(); gain.gain.value = 0.55;
+  src.connect(filtre).connect(gain).connect(c.destination);
+  src.start();
+  [0,0.12,0.22,0.34,0.46].forEach(dep => {
+    const o = c.createOscillator(); const g = c.createGain();
+    o.type="triangle"; o.frequency.value = 1200 + Math.random()*400;
+    g.gain.setValueAtTime(0.0001, c.currentTime+dep);
+    g.gain.exponentialRampToValueAtTime(0.25, c.currentTime+dep+0.005);
+    g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime+dep+0.09);
+    o.connect(g).connect(c.destination); o.start(c.currentTime+dep); o.stop(c.currentTime+dep+0.1);
+  });
+}
+function jouerMepris(){
+  const c = ctx();
+  const o = c.createOscillator(); const g = c.createGain();
+  o.type = "sawtooth";
+  o.frequency.setValueAtTime(260, c.currentTime);
+  o.frequency.exponentialRampToValueAtTime(90, c.currentTime+0.45);
+  g.gain.setValueAtTime(0.0001, c.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.25, c.currentTime+0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime+0.5);
+  o.connect(g).connect(c.destination); o.start(); o.stop(c.currentTime+0.55);
+  const o2 = c.createOscillator(); const g2 = c.createGain();
+  o2.type="square"; o2.frequency.value = 180;
+  g2.gain.setValueAtTime(0.0001, c.currentTime+0.1);
+  g2.gain.exponentialRampToValueAtTime(0.15, c.currentTime+0.12);
+  g2.gain.exponentialRampToValueAtTime(0.0001, c.currentTime+0.35);
+  o2.connect(g2).connect(c.destination); o2.start(c.currentTime+0.1); o2.stop(c.currentTime+0.36);
+}
+function jouerVictoire(){
+  const c = ctx();
+  [523.25, 659.25, 783.99, 1046.5].forEach((f,i) => {
+    const o = c.createOscillator(); const g = c.createGain();
+    o.type="triangle"; o.frequency.value = f;
+    const t = c.currentTime + i*0.14;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.3, t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.4);
+    o.connect(g).connect(c.destination); o.start(t); o.stop(t+0.42);
+  });
+}
+
+/* ================= ÉLÉMENTS ================= */
+const $ = id => document.getElementById(id);
+const accueil = $("accueil"), jeu = $("jeu"), recap = $("recap"), classement = $("classement");
+const bravoEl = $("bravo");
+let bravoTimer = null;
+
+function afficherBravo(){
+  bravoEl.textContent = "Bravo !";
+  bravoEl.classList.remove("cache");
+  bravoEl.classList.add("affiche");
+  clearTimeout(bravoTimer);
+  bravoTimer = setTimeout(() => {
+    bravoEl.classList.remove("affiche");
+    bravoEl.classList.add("cache");
+  }, 900);
+}
+
+/* ================= STORAGE ================= */
+const getScores = () => { try{ return JSON.parse(localStorage.getItem("conj_scores")||"[]"); }catch(e){ return []; } };
+const saveScores = a => localStorage.setItem("conj_scores", JSON.stringify(a));
+
+/* ================= INIT ================= */
+const nomSauve = localStorage.getItem("conj_nom");
+if(nomSauve) $("inputNom").value = nomSauve;
+
+document.querySelectorAll("#choixVerbes .choix").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("#choixVerbes .choix").forEach(b => b.classList.remove("actif"));
+    btn.classList.add("actif");
+    nbVerbes = parseInt(btn.dataset.n, 10);
+  });
+});
+
+$("btnJouer").addEventListener("click", () => {
+  const val = $("inputNom").value.trim();
+  if(val.length < 2 || val.length > 20){
+    $("errNom").textContent = "Le prénom doit contenir entre 2 et 20 caractères.";
+    return;
+  }
+  joueur = val;
+  localStorage.setItem("conj_nom", joueur);
+  demarrerPartie();
+});
+$("inputNom").addEventListener("keydown", e => { if(e.key === "Enter") $("btnJouer").click(); });
+
+$("btnClassementAccueil").addEventListener("click", () => afficherClassement());
+$("btnRetourClassement").addEventListener("click", () => {
+  classement.style.display = "none";
+  if(jeu.dataset.enCours === "1") jeu.style.display = "block";
+  else accueil.style.display = "block";
+});
+$("btnEffacerScores").addEventListener("click", () => {
+  if(confirm("Effacer tous les scores ?")){ saveScores([]); afficherClassement(); }
+});
+$("btnRejouer").addEventListener("click", demarrerPartie);
+$("btnVoirClassement").addEventListener("click", () => afficherClassement());
+$("btnChangerJoueur").addEventListener("click", () => {
+  recap.style.display = "none";
+  accueil.style.display = "block";
+  $("inputNom").value = joueur;
+  $("errNom").textContent = "";
+  arreterFeu();
+});
+
+/* ================= DÉMARRER ================= */
+function demarrerPartie(){
+  arreterFeu();
+  accueil.style.display = "none";
+  recap.style.display = "none";
+  classement.style.display = "none";
+  jeu.style.display = "block";
+  jeu.dataset.enCours = "1";
+
+  const tous = Object.keys(VERBES);
+  verbesChoisis = melanger([...tous]).slice(0, nbVerbes);
+
+  score = 0; erreurs = 0; placees = 0; secondes = 0;
+  indiceUtilise = {}; historique = [];
+  total = nbVerbes * 6;
+  maxScore = total * 10;
+  etiquetteSelectionnee = null;
+
+  $("nomJoueur").textContent = "👤 " + joueur;
+  $("score").textContent = "Score : 0";
+  $("chrono").textContent = "⏱ 0:00";
+  $("compteur").textContent = "0 / " + total;
+  $("barreProg").style.width = "0%";
+
+  construireGrille();
+  construireReserve();
+  lancerChrono();
+}
+
+function lancerChrono(){
+  clearInterval(chronoInterval);
+  chronoInterval = setInterval(() => {
+    secondes++;
+    const m = Math.floor(secondes/60), s = secondes%60;
+    $("chrono").textContent = "⏱ " + m + ":" + String(s).padStart(2,"0");
+  }, 1000);
+}
+
+/* ================= GRILLE ================= */
+function construireGrille(){
+  const grille = $("grille");
+  grille.innerHTML = "";
+  grille.dataset.n = verbesChoisis.length;
+  verbesChoisis.forEach(verbe => {
+    const col = document.createElement("div");
+    col.className = "colonne";
+    col.style.background = COULEURS[verbe];
+    col.innerHTML = `<h3>${verbe}</h3>`;
+    PRONOMS.forEach((pronom, i) => {
+      const cible = document.createElement("div");
+      cible.className = "cible";
+      cible.dataset.verbe = verbe;
+      cible.dataset.index = i;
+      cible.dataset.attendu = VERBES[verbe][i];
+      cible.innerHTML = `<span class="pronom">${pronom}</span><span class="slot"></span>`;
+      cible.addEventListener("dragover", e => e.preventDefault());
+      cible.addEventListener("drop", e => {
+        e.preventDefault();
+        tenterPlacement(e.dataTransfer.getData("text/plain"), cible);
+      });
+      cible.addEventListener("click", () => {
+        if(etiquetteSelectionnee) tenterPlacement(etiquetteSelectionnee, cible);
+      });
+      col.appendChild(cible);
+    });
+    grille.appendChild(col);
+  });
+}
+
+/* ================= RÉSERVE ================= */
+let etiquetteSelectionnee = null;
+function construireReserve(){
+  const zone = $("zoneReserve");
+  zone.innerHTML = "";
+  const toutes = [];
+  verbesChoisis.forEach(verbe => {
+    VERBES[verbe].forEach((forme, i) => toutes.push({verbe, index:i, forme}));
+  });
+  melanger(toutes);
+  toutes.forEach((item, n) => {
+    const et = document.createElement("div");
+    et.className = "etiquette";
+    et.draggable = true;
+    et.textContent = item.forme;
+    et.dataset.verbe = item.verbe;
+    et.dataset.index = item.index;
+    et.id = "et" + n;
+    et.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/plain", et.id);
+      et.classList.add("dragging");
+      etiquetteSelectionnee = et.id;
+    });
+    et.addEventListener("dragend", () => et.classList.remove("dragging"));
+    et.addEventListener("click", () => {
+      if(et.classList.contains("placee")) return;
+      document.querySelectorAll(".etiquette").forEach(x => x.classList.remove("selectionnee"));
+      et.classList.add("selectionnee");
+      etiquetteSelectionnee = et.id;
+    });
+    zone.appendChild(et);
+  });
+}
+
+function melanger(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+/* ================= PLACEMENT ================= */
+function tenterPlacement(idEt, cible){
+  const et = document.getElementById(idEt);
+  if(!et || et.classList.contains("placee")) return;
+  if(cible.classList.contains("ok")) return;
+
+  const attendu = cible.dataset.attendu;
+  const forme = et.textContent.trim();
+  const cle = cible.dataset.verbe + "|" + cible.dataset.index;
+
+  if(forme === attendu){
+    const slot = cible.querySelector(".slot");
+    slot.innerHTML = "";
+    slot.classList.add("rempli");
+    const copie = document.createElement("span");
+    copie.className = "etiquette placee";
+    copie.textContent = forme;
+    slot.appendChild(copie);
+    cible.classList.add("ok");
+    cible.classList.remove("erreur","indice");
+    et.remove();
+    etiquetteSelectionnee = null;
+
+    const premierCoup = !indiceUtilise[cle];
+    const gain = premierCoup ? 10 : 5;
+    score += gain; placees++;
+
+    historique.push({verbe:cible.dataset.verbe, pronom:PRONOMS[cible.dataset.index],
+      forme, gain, premierCoup, correct:true});
+
+    afficherBravo();
+    jouerApplaudissement();
+
+    $("score").textContent = "Score : " + score;
+    $("compteur").textContent = placees + " / " + total;
+    $("barreProg").style.width = (placees/total*100) + "%";
+
+    if(placees === total) terminerPartie();
+  } else {
+    erreurs++;
+    cible.classList.add("erreur");
+    setTimeout(() => cible.classList.remove("erreur"), 350);
+    jouerMepris();
+
+    historique.push({verbe:cible.dataset.verbe, pronom:PRONOMS[cible.dataset.index],
+      forme, gain:0, premierCoup:false, correct:false});
+
+    indiceUtilise[cle] = (indiceUtilise[cle] || 0) + 1;
+    if(indiceUtilise[cle] >= 2){
+      cible.classList.add("indice");
+      setTimeout(() => cible.classList.remove("indice"), 1500);
+    }
+  }
+}
+
+/* ================= FIN ================= */
+function terminerPartie(){
+  clearInterval(chronoInterval);
+  jeu.dataset.enCours = "0";
+  jeu.style.display = "none";
+  recap.style.display = "block";
+
+  const m = Math.floor(secondes/60), s = secondes%60;
+  const tempsStr = m + " min " + String(s).padStart(2,"0") + " s";
+  const noteSur20 = Math.round(score / maxScore * 20 * 10) / 10;
+
+  $("recapNom").textContent = "Joueur : " + joueur;
+  $("recapNote").textContent = noteSur20 + " / 20";
+  $("recapDetail").textContent = "Score : " + score + " / " + maxScore;
+  $("recapScore").textContent = "Temps : " + tempsStr;
+  $("recapErreurs").textContent = "Erreurs : " + erreurs + " • " +
+    historique.filter(h=>h.correct && h.premierCoup).length + " du 1er coup";
+
+  // 4 phrases tirées au hasard parmi les verbes joués
+  afficherPhrases();
+
+  // enregistrement
+  const scores = getScores();
+  scores.push({nom: joueur, score, temps: secondes, date: new Date().toLocaleDateString("fr-FR")});
+  scores.sort((a,b) => b.score - a.score || a.temps - b.temps);
+  saveScores(scores.slice(0,10));
+
+  // cadeau + feu d'artifice si >= moyenne
+  if(noteSur20 >= 10){
+    $("cadeau").style.display = "block";
+    $("felicitations").textContent = "🎉 Bravo ! Note au-dessus de la moyenne : " + noteSur20 + "/20 !";
+    jouerVictoire();
+    lancerFeuArtifice();
+  } else {
+    $("cadeau").style.display = "none";
+    $("felicitations").textContent = "";
+  }
+}
+
+/* ================= PHRASES ================= */
+function afficherPhrases(){
+  const liste = $("listePhrases");
+  liste.innerHTML = "";
+  const phrasesChoisies = [];
+  // 1 phrase par verbe joué, tirée au hasard dans sa banque
+  verbesChoisis.forEach(verbe => {
+    const banque = BANQUE_PHRASES[verbe] || [];
+    if(banque.length){
+      const p = banque[Math.floor(Math.random()*banque.length)];
+      phrasesChoisies.push({verbe, phrase:p});
+    }
+  });
+  // compléter à 4 phrases avec les autres verbes si besoin
+  const autres = Object.keys(BANQUE_PHRASES).filter(v => !verbesChoisis.includes(v));
+  while(phrasesChoisies.length < 4 && autres.length){
+    const v = autres.splice(Math.floor(Math.random()*autres.length),1)[0];
+    const banque = BANQUE_PHRASES[v];
+    if(banque.length){
+      const p = banque[Math.floor(Math.random()*banque.length)];
+      phrasesChoisies.push({verbe:v, phrase:p});
+    }
+  }
+  phrasesChoisies.forEach(item => {
+    const li = document.createElement("li");
+    li.innerHTML = `<strong>${item.verbe}</strong> → ${item.phrase}`;
+    liste.appendChild(li);
+  });
+  $("phrases").style.display = "block";
+}
+
+/* ================= CLASSEMENT ================= */
+function afficherClassement(){
+  accueil.style.display = "none";
+  jeu.style.display = "none";
+  recap.style.display = "none";
+  classement.style.display = "block";
+
+  const tbody = $("tbodyClassement");
+  tbody.innerHTML = "";
+  const scores = getScores();
+  if(scores.length === 0){
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#64748b">Aucun score enregistré.</td></tr>`;
+    return;
+  }
+  scores.forEach((s, i) => {
+    const m = Math.floor(s.temps/60), sec = s.temps%60;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${i+1}</td><td>${escapeHtml(s.nom)}</td><td>${s.score}</td><td>${m}:${String(sec).padStart(2,"0")}</td><td>${s.date}</td>`;
+    tbody.appendChild(tr);
+  });
+}
+function escapeHtml(str){
+  return str.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ================= FEU D'ARTIFICE ================= */
+const canvasFeu = $("feu");
+const ctxFeu = canvasFeu.getContext("2d");
+let particules = [];
+let animFeu = null;
+let feuActif = false;
+
+function resizeCanvas(){
+  canvasFeu.width = window.innerWidth;
+  canvasFeu.height = window.innerHeight;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
+
+const COULEURS_FEU = ["#ec4899","#8b5cf6","#06b6d4","#f97316","#facc15","#22c55e","#ef4444","#3b82f6"];
+
+function creerExplosion(x, y){
+  const n = 70 + Math.floor(Math.random()*40);
+  const couleur = COULEURS_FEU[Math.floor(Math.random()*COULEURS_FEU.length)];
+  for(let i=0;i<n;i++){
+    const angle = (Math.PI*2*i)/n + Math.random()*0.2;
+    const vitesse = 2 + Math.random()*5;
+    particules.push({
+      x, y,
+      vx: Math.cos(angle)*vitesse,
+      vy: Math.sin(angle)*vitesse,
+      vie: 1,
+      couleur: Math.random() < 0.7 ? couleur : COULEURS_FEU[Math.floor(Math.random()*COULEURS_FEU.length)]
+    });
+  }
+}
+
+function lancerFeuArtifice(){
+  feuActif = true;
+  particules = [];
+  let tirs = 0;
+  const maxTirs = 14;
+  const interval = setInterval(() => {
+    creerExplosion(
+      canvasFeu.width*(0.15+Math.random()*0.7),
+      canvasFeu.height*(0.15+Math.random()*0.45)
+    );
+    tirs++;
+    if(tirs >= maxTirs){ clearInterval(interval); }
+  }, 400);
+
+  if(!animFeu){
+    const boucle = () => {
+      ctxFeu.clearRect(0,0,canvasFeu.width,canvasFeu.height);
+      ctxFeu.globalCompositeOperation = "lighter";
+      particules.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        p.vy += 0.04; p.vx *= 0.99; p.vy *= 0.99;
+        p.vie -= 0.012;
+        if(p.vie > 0){
+          ctxFeu.globalAlpha = Math.max(p.vie, 0);
+          ctxFeu.fillStyle = p.couleur;
+          ctxFeu.beginPath();
+          ctxFeu.arc(p.x, p.y, 3, 0, Math.PI*2);
+          ctxFeu.fill();
+        }
+      });
+      ctxFeu.globalAlpha = 1;
+      ctxFeu.globalCompositeOperation = "source-over";
+      particules = particules.filter(p => p.vie > 0);
+      if(feuActif || particules.length > 0){
+        animFeu = requestAnimationFrame(boucle);
+      } else {
+        animFeu = null;
+        ctxFeu.clearRect(0,0,canvasFeu.width,canvasFeu.height);
+      }
+    };
+    animFeu = requestAnimationFrame(boucle);
+  }
+
+  setTimeout(() => { feuActif = false; }, 7000);
+}
+
+function arreterFeu(){
+  feuActif = false;
+  particules = [];
+  ctxFeu.clearRect(0,0,canvasFeu.width,canvasFeu.height);
+}
+</script>
+</body>
+</html>
